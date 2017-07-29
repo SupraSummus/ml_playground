@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
-
 import argparse
 import random
 import sys
 
-import operations
+from operations import Operation 
 from serializer import serialize_operation
 
 
@@ -17,7 +15,7 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	for i in range(args.size):
-		op = random.choice(list(operations.Operation)).value
+		op = random.choice(list(Operation)).value
 		args.output.write(serialize_operation(
 			op.code,
 			random.randrange(args.max_arg_value),
