@@ -45,7 +45,7 @@ if __name__ == '__main__':
 				tag_map = json.load(f)
 		except FileNotFoundError:
 			print('failed to load tag mapping {}'.format(args.tag_map), file=sys.stderr)
-			tag_map = None
+			tag_map = {}
 
 	for id_newline in sys.stdin:
 		id = id_newline[:-1]
