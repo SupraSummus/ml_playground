@@ -2,7 +2,6 @@ from lxml import html
 import requests
 import datetime
 import argparse
-import sys
 
 
 def get_page(url):
@@ -12,7 +11,12 @@ def get_page(url):
 
 def get_articles(archive):
 	page = get_page(archive)
-	return page.xpath('//article')
+	articles = page.xpath('//article')
+	previous = page.xpath('//*[@class="nav-previous"]//@href')
+	if len(previous) == 0:
+		return articles
+	else:
+		return articles + get_articles(previous[0])
 
 
 def get_title(article):
@@ -29,7 +33,7 @@ def get_date(article):
 
 
 def get_content(article):
-	return '\n'.join(article.xpath('div/p/text()'))
+	return '\n'.join(article.xpath('div/p//text()'))
 
 
 def get_tags(article):
@@ -38,23 +42,25 @@ def get_tags(article):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Make trainset from <name>.blog.onet.pl archive posts.')
-	parser.add_argument('-c', '--content-file', help='Post content file path template.', type=str, default='trainset/{}.in')
-	parser.add_argument('-t', '--tags-file', help='Post tags file path template.', type=str, default='trainset/{}.out')
-	parser.add_argument('url', help='Archive URL to read form (eg. \'http://nadblog-wszystkich-blogow.blog.onet.pl/2013/07/\').',)
+	parser.add_argument('-c', '--content-file', help='Post content file path template.', type=str, default='{}.content')
+	parser.add_argument('-t', '--tags-file', help='Post tags file path template.', type=str, default='{}.tags')
+	parser.add_argument('-n', '--encoding', help='Encoding of content files.', type=str, default='utf8')
+	parser.add_argument('url', help='Archive URL to read form (eg. \'http://nadblog-wszystkich-blogow.blog.onet.pl/2013/07/\').', nargs='*')
 
 	args = parser.parse_args()
 
-	for article in get_articles(args.url):
-		print('{}: {}'.format(get_id(article), get_title(article)), file=sys.stderr)
+	for url in args.url:
 
-		with open(args.content_file.format(get_id(article)), 'w') as f:
-			f.write(''.join([
-				get_title(article),
-				'\n',
-				get_content(article),
-			]))
+		for article in get_articles(url):
 
-		with open(args.tags_file.format(get_id(article)), 'w') as f:
-			for tag in get_tags(article):
-				f.write(tag)
-				f.write('\n')
+			with open(args.content_file.format(get_id(article)), 'wb') as f:
+				f.write(get_title(article).encode(args.encoding))
+				f.write('\n'.encode(args.encoding))
+				f.write(get_content(article).encode(args.encoding))
+
+			with open(args.tags_file.format(get_id(article)), 'wt') as f:
+				for tag in get_tags(article):
+					f.write(tag)
+					f.write('\n')
+
+			print(get_id(article))
