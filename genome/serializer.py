@@ -9,7 +9,7 @@ def deserialize_operation(buff):
 	return struct.unpack(format, buff)
 
 def deserialize_operations(buff):
-	return struct.iter_unpack(format, buff)
+	return list(struct.iter_unpack(format, buff))
 
 def deserialize_operations_from_stream(stream):
 	s = struct.calcsize(format)

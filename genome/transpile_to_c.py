@@ -13,6 +13,10 @@ header = \
 #define DATA_SIZE %d
 unsigned long data[DATA_SIZE];
 
+#define INPUT_CHUNK_SIZE %d
+#define OUTPUT_CHUNK_SIZE %d
+
+
 static inline unsigned long get (unsigned long loc) {
 	if (loc >= DATA_SIZE) return 0;
 	return data[loc];
@@ -40,36 +44,54 @@ static inline void mul(unsigned long arg0, unsigned long arg1) {
 }
 
 static inline void op_div(unsigned long arg0, unsigned long arg1) {
-	set(arg0, get(arg0) / get(arg1));
+	unsigned long v1 = get(arg1);
+	if (v1 == 0) {
+		set(arg0, 0);
+	} else {
+		set(arg0, get(arg0) / v1);
+	}
 }
 
 static inline void mod(unsigned long arg0, unsigned long arg1) {
-	set(arg0, get(arg0) %% get(arg1));
+	unsigned long v1 = get(arg1);
+	if (v1 <= 1) {
+		set(arg0, 0);
+	} else {
+		set(arg0, get(arg0) %% v1);
+	}
 }
 
-void read_data() {
+
+void read_chunk() {
 	size_t offset = 0;
-	while (offset < sizeof(unsigned long) * DATA_SIZE) {
-		ssize_t ret = read(STDIN_FILENO, (void *)data + offset, sizeof(unsigned long) * DATA_SIZE - offset);
-		if (ret == 0) return;
+	while (offset < sizeof(unsigned long) * INPUT_CHUNK_SIZE) {
+		ssize_t ret = read(STDIN_FILENO, (void *)data + offset, sizeof(unsigned long) * INPUT_CHUNK_SIZE - offset);
+		if (ret == 0) exit(EXIT_SUCCESS);
 		if (ret < 0) exit(EXIT_FAILURE);
 		offset += ret;
 	}
 }
 
-void write_data() {
-	ssize_t ret = write(STDOUT_FILENO, data, sizeof(unsigned long) * DATA_SIZE);
-	if (ret != sizeof(unsigned long) * DATA_SIZE) exit(EXIT_FAILURE);
+
+void write_chunk() {
+	ssize_t ret = write(STDOUT_FILENO, data, sizeof(unsigned long) * OUTPUT_CHUNK_SIZE);
+	if (ret != sizeof(unsigned long) * OUTPUT_CHUNK_SIZE) exit(EXIT_FAILURE);
 }
 
-void main() {
-	read_data();
+
+void compute () {
 """
 
 footer = \
 """
-	write_data();
-	exit(EXIT_SUCCESS);
+}
+
+void main () {
+	while (1) {
+		read_chunk();
+		compute();
+		write_chunk();
+	}
 }
 """
 
@@ -93,11 +115,13 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Generate C code based on binary genome.')
 	parser.add_argument('-i', '--input', help='Binary genome file.', type=argparse.FileType('br'), default=sys.stdin.buffer)
 	parser.add_argument('-o', '--output', help='File to write generated C code to.', type=argparse.FileType('tw'), default=sys.stdout)
-	parser.add_argument('-s', '--data-size', help='Operational memory size (in \'units\' - each is 4 bytes).', type=int, default=8*1024)
+	parser.add_argument('--memory-size', help='Operational memory size (in \'units\' - each is 4 bytes).', type=int, default=8*1024)
+	parser.add_argument('--input-chunk', help='Size of input chunk in units.', type=int, default=128)
+	parser.add_argument('--output-chunk', help='Size of output chunk in units.', type=int, default=4)
 
 	args = parser.parse_args()
 
-	args.output.write(header % args.data_size)
+	args.output.write(header % (args.memory_size, args.input_chunk, args.output_chunk))
 	for (code, arg0, arg1) in deserialize_operations_from_stream(args.input):
-		args.output.write(c_operations.get(code, '/* unknown {} {} */\n').format(arg0, arg1))
+		args.output.write(c_operations.get(code, '/* unknown {} {} {} */\n'.format(code, '{}', '{}')).format(arg0, arg1))
 	args.output.write(footer)

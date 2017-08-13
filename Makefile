@@ -1,41 +1,61 @@
+POOL = pool
+
+GENOME_SIZE = 16384
+MEMORY_SIZE = 4096
+POOL_SIZE = 128
+
+GENOMES = $(wildcard $(POOL)/*)
+
 # disable builtin rules
 .SUFFIXES:
+.PHONY: evaluate trainset pool breed
+.SECONDARY: $(patsubst %,%/compiled,$(GENOMES))
 
-trainset: trainset/blog_onet_pl
-	mkdir -p $@
+breed:
+	python genome/crossover_generation.py \
+		--pool $(POOL) \
+		--count 8
+	python genome/mutation_generation.py \
+		--pool $(POOL) \
+		--count 8 \
+		--span-min 1 \
+		--span-max 128 \
+		--max-arg-value $(MEMORY_SIZE)
 
-trainset/blog_onet_pl: \
-	trainset/blog_onet_pl/nadblog-wszystkich-blogow \
-	trainset/blog_onet_pl/ryszardczarnecki \
-	trainset/blog_onet_pl/senyszyn \
-	trainset/blog_onet_pl/kuzmiuk \
-	trainset/blog_onet_pl/tglogowski \
-	trainset/blog_onet_pl/sieniawski-marek \
-	trainset/blog_onet_pl/adamszejnfeld \
-	trainset/blog_onet_pl/aleksandrajakubowska \
-	trainset/blog_onet_pl/zbigniewsosnowski \
-	trainset/blog_onet_pl/iwinski \
-	trainset/blog_onet_pl/cichocki \
-	trainset/blog_onet_pl/jflibicki \
+kill: evaluate
+	mkdir -p graveyard
+	python genome/kill.py --count $(POOL_SIZE) --pool $(POOL)
 
-	mkdir -p $@
+wikislownik:
+	mkdir -p '$@'
+	python scrape/get_wikimedia_category_files.py Polish_pronunciation | \
+		xargs -n 100 -P 5 wget -q -P '$@' -nc
 
-trainset/blog_onet_pl/%: raw/blog_onet_pl/%
-	mkdir -p $@
-	cat '$</ids' | python scrape/map_tags.py \
-		-c '$</{}.content' \
-		-t '$</{}.tags' \
-		-i '$@/{}.in' \
-		-o '$@/{}.out' \
-		--missing-mappings '$@/{}.missing_mappings' \
-		-m 'data/blog_onet_pl/tag_map/$*.json' \
-		> '$@/ids'
+trainset: wikislownik
+	rm -rf '$@'
+	rm -rf pool/*/score  # invalidate scores
+	mkdir -p '$@'
+	python make_ws_trainset.py \
+		-s 128 \
+		-i '$<' \
+		-o '$@'
 
-raw/blog_onet_pl/%:
-	mkdir -p $@
-	python scrape/list_blog_onet_pl_archives.py 'http://$*.blog.onet.pl/' | \
-		head -n 48 | \
-		xargs python scrape/get_blog_onet_pl_archive.py \
-			-c '$@/{}.content' \
-			-t '$@/{}.tags' \
-		> '$@/ids'
+$(POOL):
+	mkdir -p '$@'
+	python genome/generate_random_generation.py \
+		-o '$@' \
+		--genome-size $(GENOME_SIZE) \
+		--max-arg-value $(MEMORY_SIZE) \
+		--count $(POOL_SIZE)
+
+$(POOL)/%/compiled: $(POOL)/%/genome
+	cat '$<' | python genome/transpile_to_c.py \
+		--memory-size $(MEMORY_SIZE) \
+		--input-chunk 128 \
+		--output-chunk 4 \
+		| gcc -o '$@' -xc -
+
+$(POOL)/%/score: $(POOL)/%/compiled
+	python evaluate.py '$<' > '$@'
+
+evaluate: $(patsubst %,%/score,$(GENOMES))

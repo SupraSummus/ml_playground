@@ -1,4 +1,7 @@
 *.pyc
 venv/
-raw/
+wikislownik/
 trainset/
+pool/
+graveyard/
+log/

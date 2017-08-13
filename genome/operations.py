@@ -1,5 +1,7 @@
 from enum import Enum
 from argparse import Namespace
+import random
+
 
 class Operation(Enum):
 	noop = Namespace(code=0)
@@ -14,3 +16,12 @@ class Operation(Enum):
 	mul = Namespace(code=20)
 	div = Namespace(code=21)
 	mod = Namespace(code=22)
+
+
+def random_operation(max_arg_value):
+	op = random.choice(list(Operation)).value
+	return (
+		op.code,
+		random.randrange(max_arg_value),
+		random.randrange(max_arg_value),
+	)
