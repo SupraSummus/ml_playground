@@ -61,6 +61,38 @@ static inline void mod(unsigned long arg0, unsigned long arg1) {
 	}
 }
 
+static inline void inc_guard(unsigned long arg0, unsigned long arg1) {
+	unsigned long v0 = get(arg0);
+	unsigned long v1 = get(arg1);
+	unsigned long res = v0 + v1;
+	if (res < v0) res = (unsigned long int)-1;
+	set(arg0, res);
+}
+
+static inline void dec_guard(unsigned long arg0, unsigned long arg1) {
+	unsigned long v0 = get(arg0);
+	unsigned long v1 = get(arg1);
+	unsigned long res = v0 - v1;
+	if (res > v0) res = 0;
+	set(arg0, res);
+}
+
+static inline void b_not(unsigned long arg0, unsigned long arg1) {
+	set(arg0, ~get(arg1));
+}
+
+static inline void b_or(unsigned long arg0, unsigned long arg1) {
+	set(arg0, get(arg0) | get(arg1));
+}
+
+static inline void b_and(unsigned long arg0, unsigned long arg1) {
+	set(arg0, get(arg0) & get(arg1));
+}
+
+static inline void b_xor(unsigned long arg0, unsigned long arg1) {
+	set(arg0, get(arg0) ^ get(arg1));
+}
+
 
 void read_chunk() {
 	size_t offset = 0;
@@ -98,16 +130,21 @@ void main () {
 c_operations = {
 	Operation.noop.value.code: '/* noop {} {} */\n',
 	Operation.const.value.code: 'set({}, {});\n',
-	Operation.deref.value.code: 'deref({}, {});\n',
+	#Operation.deref.value.code: 'deref({}, {});\n',
 
 	Operation.inc.value.code: 'inc({}, {});\n',
 	Operation.dec.value.code: 'dec({}, {});\n',
-	#Operation.inc_guard.value.code: 'inc_guard({}, {});\n',
-	#Operation.dec_guard.value.code: 'dec_guard({}, {});\n',
+	Operation.inc_guard.value.code: 'inc_guard({}, {});\n',
+	Operation.dec_guard.value.code: 'dec_guard({}, {});\n',
 
 	Operation.mul.value.code: 'mul({}, {});\n',
 	Operation.div.value.code: 'op_div({}, {});\n',
 	Operation.mod.value.code: 'mod({}, {});\n',
+
+	Operation.b_not.value.code: 'b_not({}, {});\n',
+	Operation.b_or.value.code: 'b_or({}, {});\n',
+	Operation.b_and.value.code: 'b_and({}, {});\n',
+	Operation.b_xor.value.code: 'b_xor({}, {});\n',
 }
 
 
@@ -123,5 +160,6 @@ if __name__ == '__main__':
 
 	args.output.write(header % (args.memory_size, args.input_chunk, args.output_chunk))
 	for (code, arg0, arg1) in deserialize_operations_from_stream(args.input):
+		args.output.write('\t')
 		args.output.write(c_operations.get(code, '/* unknown {} {} {} */\n'.format(code, '{}', '{}')).format(arg0, arg1))
 	args.output.write(footer)

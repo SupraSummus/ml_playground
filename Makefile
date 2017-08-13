@@ -2,7 +2,8 @@ POOL = pool
 
 GENOME_SIZE = 16384
 MEMORY_SIZE = 4096
-POOL_SIZE = 128
+POOL_SIZE = 256
+TRAINSET_SIZE = 64
 
 GENOMES = $(wildcard $(POOL)/*)
 
@@ -15,11 +16,16 @@ breed:
 	python genome/crossover_generation.py \
 		--pool $(POOL) \
 		--count 8
+	python genome/internal_mix_generation.py \
+		--pool $(POOL) \
+		--count 8 \
+		--span-min 1 \
+		--span-max 64
 	python genome/mutation_generation.py \
 		--pool $(POOL) \
 		--count 8 \
 		--span-min 1 \
-		--span-max 128 \
+		--span-max 64 \
 		--max-arg-value $(MEMORY_SIZE)
 
 kill: evaluate
@@ -36,7 +42,7 @@ trainset: wikislownik
 	rm -rf pool/*/score  # invalidate scores
 	mkdir -p '$@'
 	python make_ws_trainset.py \
-		-s 128 \
+		-s $(TRAINSET_SIZE) \
 		-i '$<' \
 		-o '$@'
 

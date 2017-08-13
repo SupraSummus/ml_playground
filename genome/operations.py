@@ -6,7 +6,7 @@ import random
 class Operation(Enum):
 	noop = Namespace(code=0)
 	const = Namespace(code=1)
-	deref = Namespace(code=2)
+	#deref = Namespace(code=2)
 
 	inc = Namespace(code=10)
 	dec = Namespace(code=11)
@@ -16,6 +16,12 @@ class Operation(Enum):
 	mul = Namespace(code=20)
 	div = Namespace(code=21)
 	mod = Namespace(code=22)
+
+	b_not = Namespace(code=30)
+	b_or = Namespace(code=31)
+	b_and = Namespace(code=32)
+	b_xor = Namespace(code=33)
+	#b_shift = Namespace(code=34)
 
 
 def random_operation(max_arg_value):
